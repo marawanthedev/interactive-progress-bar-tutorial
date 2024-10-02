@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   TextField,
   Button,
@@ -8,7 +8,8 @@ import {
 } from "@mui/material";
 import axios from "axios";
 import SuccessMessage from "./SuccessMessage";
-
+import InteractiveProgressBarOverlay from "./InteractiveProgressBar";
+import { countAwaits } from "./countAwaits";
 // how many api request to be made for X form submission
 // how many api requests have been done for X form submission
 // current step submission loading message
@@ -20,16 +21,29 @@ const MyForm: React.FC = () => {
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [isComplaintSubmitted, setIsComplaintSubmitted] = useState(false);
+  const [apiRequestsCount, setApiRequestsCount] = useState(0);
+  const [apiRequestsDone, setApiRequestsDone] = useState(0);
+  const [loadingMessage, setLoadingMessage] = useState("Loading....");
+
+  const incrementStepsDone = (message?: string) => {
+    if (apiRequestsDone < apiRequestsCount) {
+      setApiRequestsDone((prev) => prev + 1);
+      setLoadingMessage(message || "");
+    }
+  };
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     setLoading(true);
 
     try {
+      setLoadingMessage("retriving user details");
       await axios.get("http://localhost:3001/long-request-1");
 
+      incrementStepsDone("intiating complaint submission");
       await axios.get("http://localhost:3001/long-request-2");
 
+      incrementStepsDone("finalizing complaint submission");
       await axios.get("http://localhost:3001/long-request-3");
     } catch (error) {
       console.error("Error fetching data:", error);
@@ -39,6 +53,10 @@ const MyForm: React.FC = () => {
       setIsComplaintSubmitted(true);
     }
   };
+
+  useEffect(() => {
+    setApiRequestsCount(countAwaits(handleSubmit));
+  }, []);
 
   return (
     <Box
@@ -85,17 +103,12 @@ const MyForm: React.FC = () => {
       )}
 
       {loading && (
-        <Box
-          sx={{
-            width: "100%",
-            height: "100vh",
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "center",
-          }}
-        >
-          <CircularProgress />
-        </Box>
+        <InteractiveProgressBarOverlay
+          apiRequestsCount={apiRequestsCount}
+          apiRequestsDone={apiRequestsDone}
+          loading={loading}
+          message={loadingMessage}
+        />
       )}
 
       {isComplaintSubmitted && (
